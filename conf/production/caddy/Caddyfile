@@ -1,0 +1,4 @@
+import snippets/*
+
+# Use the "laravel-app" snippet for our site:
+import service-app :80 /app

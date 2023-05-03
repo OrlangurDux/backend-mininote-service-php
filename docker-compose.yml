@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  mininote-service:
+    build:
+      context: .
+      target: 'service'
+    container_name: 'mininote-service'
+    restart: unless-stopped
+    environment:
+      APP_DEBUG: 'false'
+      APP_URL: 'https://mininote.orlangur.link'
+      DB_HOST: 'mininote-mysql'
+      DB_DATABASE: 'mininote'
+      DB_USERNAME: 'mininote'
+      DB_PASSWORD: 'mininote123'
+      APP_VERSION: '0.1.0'
+    ports:
+      - "2880:80"
+      - "2443:443"
+    depends_on:
+      - mininote-mysql
+
+  mininote-redis:
+    image: 'redis:alpine'
+    container_name: 'mininote-redis'
+    restart: unless-stopped
+    ports:
+      - '2394:6379'
+
+  mininote-mysql:
+    image: 'mariadb:10.8'
+    container_name: 'mininote-mysql'
+    restart: unless-stopped
+    volumes:
+      - ./mysql:/var/lib/mysql
+    environment:
+      MARIADB_ROOT_PASSWORD: 'passwdroot123!'
+      MARIADB_DATABASE: 'mininote'
+      MARIADB_USER: 'mininote'
+      MARIADB_PASSWORD: 'mininote123'
+    ports:
+      - '2309:3306'
+
+networks:
+  default:
+    name: mini_note_network
+    external: true

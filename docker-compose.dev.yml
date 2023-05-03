@@ -1,0 +1,129 @@
+version: '3.19'
+
+services:
+  dev-mininote-service:
+    image: 'caddy:2.5.0-alpine'
+    container_name: 'dev-mininote-service'
+    restart: unless-stopped
+    ports:
+      - "2880:80"
+      - "2443:443"
+    volumes:
+      - ./conf/development/caddy:/etc/caddy
+      - ./src:/app
+      - caddy_config:/config
+      - caddy_data:/data
+    depends_on:
+      - dev-mininote-php-fpm
+      - dev-mininote-mysql
+      - dev-mininote-redis
+      - dev-mininote-smtp
+      - dev-mininote-phpmyadmin
+
+  dev-mininote-php-fpm:
+      build:
+        context: .
+        target: php
+        dockerfile: development.dockerfile
+      extra_hosts:
+        - "host.docker.internal:host-gateway"
+      container_name: 'dev-mininote-php-fpm'
+      restart: unless-stopped
+      volumes:
+        - ./src:/app
+      depends_on:
+        - dev-mininote-mysql
+      ports:
+        - '2053:9003'
+        - '2090:8090'
+
+  dev-mininote-mysql:
+      image: 'mariadb:10.8'
+      container_name: 'dev-mininote-mysql'
+      restart: unless-stopped
+      volumes:
+        - ./mysql:/var/lib/mysql
+      user: "${UID}:${GID}"
+      environment:
+        MARIADB_ROOT_PASSWORD: passwdroot123!
+        MARIADB_DATABASE: dev_mini-note
+        MARIADB_USER: mininote
+        MARIADB_PASSWORD: mininote123
+      ports:
+        - '2309:3306'
+
+  dev-mininote-redis:
+    image: 'redis:alpine'
+    container_name: 'dev-mininote-redis'
+    restart: unless-stopped
+    ports:
+      - '2394:6379'
+
+  dev-mininote-composer:
+    image: 'composer:2.3.10'
+    container_name: 'dev-mininote-composer'
+    volumes:
+      - ./src:/app:delegated
+    working_dir: /app
+    depends_on:
+      - dev-mininote-php-fpm
+    entrypoint: ['composer', '--ignore-platform-reqs']
+
+  dev-mininote-artisan:
+    build:
+      context: .
+      target: php
+      dockerfile: development.dockerfile
+    container_name: 'dev-mininote-artisan'
+    volumes:
+      - ./src:/app:delegated
+    depends_on:
+      - dev-mininote-mysql
+    working_dir: /app
+    entrypoint: ['php', '/app/artisan']
+
+  dev-mininote-smtp:
+    image: 'rnwood/smtp4dev:v3.1'
+    container_name: 'dev-mininote-smtp'
+    ports:
+      - '2005:80'
+    environment:
+      ServerOptions__HostName: smtp4dev
+    volumes:
+      - smtp_data:/smtp4dev
+
+  dev-mininote-phpmyadmin:
+    image: 'phpmyadmin/phpmyadmin'
+    container_name: 'dev-mininote-phpmyadmin'
+    links:
+      - dev-mininote-mysql
+    environment:
+      PMA_HOST: dev-mininote-mysql
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+    restart: unless-stopped
+    ports:
+      - '2089:80'
+
+  dev-mininote-npm:
+    image: 'node:18'
+    container_name: 'dev-mininote-npm'
+    volumes:
+      - ./src:/app:delegated
+    ports:
+      - '2330:3000'
+      - '2331:3001'
+    working_dir: /app
+    environment:
+      npm_config_cache: /tmp
+    entrypoint: ['npm']
+
+volumes:
+  caddy_data:
+  caddy_config:
+  smtp_data:
+
+networks:
+  default:
+    name: mini_note_network
+    external: true
